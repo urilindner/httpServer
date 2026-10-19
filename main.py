@@ -1,74 +1,111 @@
 import socket
 import os
 
-def send_data(client,data_len_byte ,data):
+
+def send_data(client, data_len_byte, data):
+    """
+    the func send to the client data from server and length
+    :param client: where to send
+    :param data_len_byte: message len
+    :param data:the data to send
+    :return:none
+    """
     if type(data) == str:
         data = data.encode()
     try:
         client.send(data)
     except Exception as e:
-        print(f"error in send {str(e)}")
-def getURL(ans):
-    """
-    return the URL from the client request
-    :param ans:
-    :return: 
-    """
-    line1 = ans.split('\r\n')[0]
-    return line1.split(' ')[1][1:]
+        print(f"error in recv/send try again {str(e)}")
 
-def check_get_packet(ans):      # Targil3
+
+def get_url(answer):
     """
-    check_packet from the client request
-    :param ans:
-    :return:
+    return the URL from client request
+    :param answer: the request
+    :return: the URL
     """
+
+    lines = answer.split('\r\n')[0]
+    if lines.split(' ')[1] == "/":
+        url_data = ''
+    else:
+        url_data = lines.split(' ')[1][1:]
+    return url_data
+
+
+def send_file(file_name):
+    """
+    the func send file to client
+    :param file_name: the file name
+    :return: none
+    """
+    with open(file_name, 'rb') as file:
+        file_data = file.read()
+
+    answer = f"HTTP/1.1 200 OK\r\nContent - Length: {str(len(file_data))}\r\n\r\n".encode() + file_data
+    try:
+        send_data(client_sock, 6, answer)
+    except Exception as e:
+        print(f"error in sending {str(e)}")
+
+
+def check_get_packet(answer):
+    """
+    return the URL from client request
+    :param answer: the request
+    :return: the URL
+    """
+
     valid = False
-    line1 = ans.split('\r\n')[0]
-    params = line1.split(' ')
+    lines = answer.split('\r\n')[0]
+    params = lines.split(' ')
     if len(params) == 3 and params[0] == 'GET' and params[2] == 'HTTP/1.1':
         valid = True
     return valid
 
 
-server_soc = socket.socket()
-server_soc.bind(("0.0.0.0", 80)) #80\8080
-server_soc.listen(3)
+server_sock = socket.socket()
+server_sock.bind(("0.0.0.0", 80))  # 8080
+server_sock.listen(3)
 
+do_not_touch_files = ["C:/Users/adipe/Downloads/MyPic.png", "C:/Users/adipe/Downloads/1.txt"]
+moved_files = {"C:/Users/adipe/Downloads/client_image.py": "C:/Users/adipe/Downloads/server_image.py"}
 while True:
-    client_soc, addr = server_soc.accept()
+    client_sock, addr = server_sock.accept()
     print(f"{addr[0]} - connected")
 
     try:
-        data = client_soc.recv(1024).decode()
+        data = client_sock.recv(1024).decode()
     except Exception as e:
-        print(f"error in receive {str(e)}")
-        client_soc.close()
+        print(f"error in recv {str(e)}")
+        client_sock.close()
         continue
 
-    if not check_get_packet(data):  # Targil3
-        client_soc.close()
-
+    if not check_get_packet(data):
+        client_sock.close()
     else:
-        url = getURL(data) # call the function
+
+        url = get_url(data)
         print(url)
-        if os.path.exists(url):
 
-            with open(url, 'rb') as f:
-                image_data = f.read()
+        if url == '':
+            send_file("my_first_web.html")
+            continue
+        elif os.path.exists(url) and url not in do_not_touch_files and url not in moved_files:
+            send_file(url)
+            continue
+        elif url in do_not_touch_files:
+            msg = f"HTTP/1.1 403 Forbidden\r\nContent - Length: {str(len(url))}\r\n\r\n"
+        elif url in moved_files:
+            new_location = moved_files[url]
+            msg = f"HTTP/1.1 301 Moved Permanently\r\nLocation: {new_location}\r\nContent - Length: {str(len(url))}\r\n\r\n"
+        elif url == 'server':
+            msg = f"HTTP/1.1 500 Internal Server Error\r\nContent - Length: {str(len(url))}\r\n\r\n"
+        else:
+            msg = f"HTTP/1.1 404 Not Found\r\nContent - Length: {str(len(url))}\r\n\r\n"
+        try:
+            send_data(client_sock, 2, msg)
+        except Exception as e:
+            print(f"error in send {str(e)}")
 
-            ans = f"HTTP/1.1 200 OK\r\nConstant-Length: {str(len(image_data))}\r\n\r\n".encode() + image_data
-            try:
-                send_data(client_soc, 6, ans)
-            except Exception as e:
-                print(f"error in send {str(e)}")
-
-        else:   # targil4
-            error = "404 / File Not Found"
-            try:
-                client_soc.send(error.encode())
-            except Exception as e:
-                print(f"error in send {str(e)}")
-
-
-        client_soc.close() # Targil1
+        client_sock.close()
