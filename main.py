@@ -89,7 +89,7 @@ while True:
         print(url)
 
         if url == '':
-            send_file("my_first_web.html")
+            send_file("myPage.html")
             continue
         elif os.path.exists(url) and url not in do_not_touch_files and url not in moved_files:
             send_file(url)
