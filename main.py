@@ -1,6 +1,14 @@
 import socket
 import os
+from flask import abort
 
+def send_data(client,data_len_byte ,data):
+    if type(data) == str:
+        data = data.encode()
+    try:
+        client.send(data)
+    except Exception as e:
+        print(f"error in send {str(e)}")
 def getURL(ans):
     """
     return the URL from the client request
@@ -46,13 +54,17 @@ while True:
         url = getURL(data) # call the function
         print(url)
         if os.path.exists(url):
-            ans = f"HTTP/1.1 200 OK\r\nConstant-Length: {str(len(data))}\r\n\r\n{url}"
+
+            with open(url, 'rb') as f:
+                image_data = f.read()
+
+            ans = f"HTTP/1.1 200 OK\r\nConstant-Length: {str(len(image_data))}\r\n\r\n".encode() + image_data
             try:
-                client_soc.send(ans.encode())
+                send_data(client_soc, 6, ans)
             except Exception as e:
                 print(f"error in send {str(e)}")
 
-        else:
+        else:   # targil4
             error = "404 / File Not Found"
             try:
                 client_soc.send(error.encode())
