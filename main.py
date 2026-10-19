@@ -1,6 +1,5 @@
 import socket
 import os
-from flask import abort
 
 def send_data(client,data_len_byte ,data):
     if type(data) == str:
